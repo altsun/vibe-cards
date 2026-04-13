@@ -3,13 +3,16 @@ import { useGameStore } from '../game/engine/gameStore';
 import { SpellTrapZone } from './SpellTrapZone';
 import { CreatureZone } from './CreatureZone';
 import { Hand } from './Hand';
+import { AIPlayer } from '../game/ai/aiPlayer';
+
+const aiPlayer = new AIPlayer('p2');
 
 export const GameBoard: React.FC = () => {
   const { 
     turn, 
     currentPlayerId, 
     phase, 
-    players, 
+    gameOver,
     initializeGame, 
     dispatch,
     getCurrentPlayer,
@@ -24,6 +27,32 @@ export const GameBoard: React.FC = () => {
       initializeGame(['Player 1', 'AI Opponent']);
     }
   }, []);
+
+  // Auto draw at start of draw phase
+  React.useEffect(() => {
+    if (currentPlayerId && phase === 'draw' && !gameOver) {
+      const delay = setTimeout(() => {
+        dispatch({ type: 'DRAW_CARD', playerId: currentPlayerId });
+        dispatch({ type: 'NEXT_PHASE' });
+      }, 500);
+      return () => clearTimeout(delay);
+    }
+  }, [currentPlayerId, phase, gameOver, dispatch]);
+
+  // AI Turn
+  React.useEffect(() => {
+    if (currentPlayerId === 'p2' && !gameOver) {
+      const state = useGameStore.getState();
+      const action = aiPlayer.makeDecision(state);
+      
+      if (action) {
+        const delay = setTimeout(() => {
+          dispatch(action);
+        }, 1000); // 1 second delay for AI actions
+        return () => clearTimeout(delay);
+      }
+    }
+  }, [currentPlayerId, phase, turn, gameOver, dispatch]);
 
   const handleNextPhase = () => {
     dispatch({ type: 'NEXT_PHASE' });
@@ -63,6 +92,19 @@ export const GameBoard: React.FC = () => {
     return <div className="loading">Loading...</div>;
   }
 
+  if (gameOver) {
+    const winnerName = currentPlayerId === 'p1' ? currentPlayer.name : opponent.name;
+    const isPlayerWinner = useGameStore.getState().winner === 'p1';
+    return (
+      <div className="game-over">
+        <h1>GAME OVER</h1>
+        <p>{winnerName} wins!</p>
+        <p>{isPlayerWinner ? '🎉 You won!' : '😢 AI won!'}</p>
+        <button onClick={() => window.location.reload()}>Play Again</button>
+      </div>
+    );
+  }
+
   return (
     <div className="game-board">
       {/* Opponent Area */}
@@ -70,10 +112,10 @@ export const GameBoard: React.FC = () => {
         <div className="player-info">
           <span className="player-name">{opponent.name}</span>
           <span className="player-hp">HP: {opponent.hp}</span>
-          <span className="player-resources">Resources: {opponent.resources}</span>
+          <span className="player-mana">Mana: {opponent.mana}</span>
           <span className="deck-count">Deck: {opponent.deck.length}</span>
         </div>
-        <Hand cards={opponent.hand} />
+        <Hand cards={opponent.hand} hidden={true} />
         <SpellTrapZone 
           zones={opponent.spellTrapZone} 
           isOwner={false}
@@ -114,7 +156,7 @@ export const GameBoard: React.FC = () => {
         <div className="player-info">
           <span className="player-name">{currentPlayer.name}</span>
           <span className="player-hp">HP: {currentPlayer.hp}</span>
-          <span className="player-resources">Resources: {currentPlayer.resources}/{currentPlayer.maxResources}</span>
+          <span className="player-mana">Mana: {currentPlayer.mana}/{currentPlayer.maxMana}</span>
           <span className="deck-count">Deck: {currentPlayer.deck.length}</span>
         </div>
       </div>

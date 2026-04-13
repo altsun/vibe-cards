@@ -64,7 +64,7 @@ body {
   color: #ff6b6b;
 }
 
-.player-resources {
+.player-mana {
   color: #4ecdc4;
 }
 
@@ -355,4 +355,49 @@ body {
   padding: 50px;
   font-size: 1.5rem;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* Game Over */
+.game-over {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.game-over h1 {
+  font-size: 4rem;
+  background: linear-gradient(90deg, #ffd700, #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+}
+
+.game-over p {
+  font-size: 1.5rem;
+  margin: 10px 0;
+}
+
+.game-over button {
+  margin-top: 30px;
+  padding: 15px 40px;
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.game-over button:hover {
+  transform: scale(1.05);
 }

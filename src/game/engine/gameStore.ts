@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { GameState, Phase, Player, GameAction } from '../../types/game';
-import { CardInstance, SpellTrapZoneSlot } from '../../types/card';
 import { cardDatabase, createCardInstance } from '../cards/cardDatabase';
 
 interface GameStore extends GameState {
@@ -15,8 +14,8 @@ const createInitialPlayer = (id: string, name: string): Player => ({
   name,
   hp: 4000,
   maxHp: 4000,
-  resources: 0,
-  maxResources: 0,
+  mana: 0,
+  maxMana: 0,
   deck: [],
   hand: [],
   graveyard: [],
@@ -94,12 +93,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (cardIndex === -1) break;
 
         const card = player.hand.splice(cardIndex, 1)[0];
-        if (card.cost > player.resources) {
+        if (card.cost > player.mana) {
           player.hand.splice(cardIndex, 0, card);
           break;
         }
 
-        player.resources -= card.cost;
+        player.mana -= card.cost;
         player.creatureZone[action.position] = card;
         
         set({ players: { ...state.players, [action.playerId]: player } });
@@ -112,12 +111,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (cardIndex === -1) break;
 
         const card = player.hand.splice(cardIndex, 1)[0];
-        if (card.cost > player.resources) {
+        if (card.cost > player.mana) {
           player.hand.splice(cardIndex, 0, card);
           break;
         }
 
-        player.resources -= card.cost;
+        player.mana -= card.cost;
 
         // Normal spell goes to graveyard immediately
         if (card.type === 'normalSpell') {
@@ -200,12 +199,76 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
         } else if (nextPhase === 'resource') {
           const currentPlayer = state.players[state.currentPlayerId];
-          currentPlayer.maxResources = Math.min(currentPlayer.maxResources + 1, 10);
-          currentPlayer.resources = currentPlayer.maxResources;
+          currentPlayer.maxMana = Math.min(currentPlayer.maxMana + 1, 10);
+          currentPlayer.mana = currentPlayer.maxMana;
           updates.players = { ...state.players, [state.currentPlayerId]: currentPlayer };
         }
 
         set({ ...state, ...updates });
+        break;
+      }
+
+      case 'DECLARE_ATTACK': {
+        const player = state.players[action.playerId];
+        const opponent = state.players[action.playerId === 'p1' ? 'p2' : 'p1'];
+        
+        // Find attacker
+        const attackerIndex = player.creatureZone.findIndex(c => c?.instanceId === action.attackerId);
+        if (attackerIndex === -1) break;
+        const attacker = player.creatureZone[attackerIndex]!;
+
+        if (action.targetId === 'direct') {
+          // Direct attack - deal damage to opponent
+          const damage = attacker.attack || 0;
+          opponent.hp = Math.max(0, opponent.hp - damage);
+        } else {
+          // Attack a creature
+          const targetIndex = opponent.creatureZone.findIndex(c => c?.instanceId === action.targetId);
+          if (targetIndex === -1) break;
+          
+          const target = opponent.creatureZone[targetIndex]!;
+          const attackerAtk = attacker.attack || 0;
+          const targetDef = target.defense || 0;
+
+          // Calculate damage
+          if (attackerAtk > targetDef) {
+            // Destroy target
+            opponent.graveyard.push(target);
+            opponent.creatureZone[targetIndex] = null;
+            
+            // Check for deathrattle
+            if (target.keywords?.includes('deathrattle') && target.onDeath) {
+              // TODO: Handle deathrattle effects
+            }
+          }
+          
+          // Attacker takes damage too
+          const remainingHealth = (attacker.remainingHealth || attacker.defense || 0) - Math.max(0, targetDef - attackerAtk);
+          if (remainingHealth <= 0) {
+            player.graveyard.push(attacker);
+            player.creatureZone[attackerIndex] = null;
+          } else {
+            attacker.remainingHealth = remainingHealth;
+          }
+        }
+
+        // Check for game over
+        let gameOver = false;
+        let winner: string | null = null;
+        if (opponent.hp <= 0) {
+          gameOver = true;
+          winner = player.id;
+        }
+
+        set({
+          players: { ...state.players, [action.playerId]: player, [opponent.id]: opponent },
+          attackDeclaration: {
+            attacker: action.attackerId,
+            target: action.targetId,
+          },
+          gameOver,
+          winner,
+        });
         break;
       }
 

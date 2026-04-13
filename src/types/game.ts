@@ -7,8 +7,8 @@ export interface Player {
   name: string;
   hp: number;
   maxHp: number;
-  resources: number;
-  maxResources: number;
+  mana: number;
+  maxMana: number;
   deck: CardInstance[];
   hand: CardInstance[];
   graveyard: CardInstance[];
@@ -43,6 +43,6 @@ export type GameAction =
   | { type: 'CAST_SPELL'; playerId: string; cardId: string; target?: string }
   | { type: 'ACTIVATE_TRAP'; playerId: string; cardId: string; target?: string }
   | { type: 'SET_TRAP'; playerId: string; cardId: string; position: number }
-  | { type: 'DECLARE_ATTACK'; playerId: string; attackerId: string; targetId: string }
+  | { type: 'DECLARE_ATTACK'; playerId: string; attackerId: string; targetId: string | 'direct' }
   | { type: 'NEXT_PHASE' }
   | { type: 'END_TURN' };
