@@ -313,6 +313,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
         break;
       }
 
+      case 'SET_TRAP': {
+        const player = state.players[action.playerId];
+        const cardIndex = player.hand.findIndex(c => c.instanceId === action.cardId);
+        if (cardIndex === -1) break;
+
+        const card = player.hand.splice(cardIndex, 1)[0];
+        
+        const emptySlot = player.spellTrapZone.findIndex(s => !s.isOccupied);
+        if (emptySlot !== -1) {
+          card.isFaceDown = true;
+          card.isSet = true;
+          player.spellTrapZone[emptySlot].card = card;
+          player.spellTrapZone[emptySlot].isOccupied = true;
+        }
+
+        set({ players: { ...state.players, [action.playerId]: player } });
+        break;
+      }
+
       case 'ACTIVATE_TRAP': {
         const player = state.players[action.playerId];
         const slot = player.spellTrapZone.find(s => s.card?.instanceId === action.cardId);
