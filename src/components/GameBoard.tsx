@@ -210,7 +210,13 @@ export const GameBoard: React.FC = () => {
           zones={player.spellTrapZone} 
           isOwner={true}
           onCardActivate={(card) => {
-            dispatch({ type: 'ACTIVATE_TRAP', playerId: player.id, cardId: card.instanceId });
+            // Pass target info when activating trap during an attack
+            dispatch({ 
+              type: 'ACTIVATE_TRAP', 
+              playerId: player.id, 
+              cardId: card.instanceId,
+              target: attackDeclaration?.target || undefined
+            });
           }}
         />
         <Hand cards={player.hand} onCardClick={handleCardClick} />

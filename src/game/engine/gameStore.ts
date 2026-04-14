@@ -193,6 +193,62 @@ export const useGameStore = create<GameStore>((set, get) => ({
         slot.card.isFaceDown = false;
         slot.card.isSet = false;
 
+        // Execute trap effect
+        const effect = slot.card.onActivate;
+        const opponent = state.players[action.playerId === 'p1' ? 'p2' : 'p1'];
+        
+        if (effect) {
+          switch (effect.type) {
+            case 'destroy': {
+              if (effect.target === 'allCreatures') {
+                // Destroy all creatures on field
+                player.creatureZone.forEach((c, i) => {
+                  if (c) {
+                    player.graveyard.push(c);
+                    player.creatureZone[i] = null;
+                  }
+                });
+                opponent.creatureZone.forEach((c, i) => {
+                  if (c) {
+                    opponent.graveyard.push(c);
+                    opponent.creatureZone[i] = null;
+                  }
+                });
+              } else if (effect.target === 'creature' && action.target) {
+                // Destroy specific creature
+                const targetPlayer = action.target?.startsWith('p1') ? state.players['p1'] : opponent;
+                const targetIndex = targetPlayer.creatureZone.findIndex(c => c?.instanceId === action.target);
+                if (targetIndex !== -1 && targetPlayer.creatureZone[targetIndex]) {
+                  const target = targetPlayer.creatureZone[targetIndex]!;
+                  targetPlayer.graveyard.push(target);
+                  targetPlayer.creatureZone[targetIndex] = null;
+                }
+              }
+              break;
+            }
+            case 'damage': {
+              if (effect.target === 'opponent') {
+                // Deal damage equal to attacker's ATK (from attackDeclaration)
+                if (state.attackDeclaration) {
+                  const attackerId = state.attackDeclaration.attacker;
+                  const attacker = opponent.creatureZone.find(c => c?.instanceId === attackerId);
+                  if (attacker) {
+                    const damage = attacker.attack || 0;
+                    opponent.hp = Math.max(0, opponent.hp - damage);
+                  }
+                }
+              }
+              break;
+            }
+            case 'negate': {
+              // Negate the current action (handled by cancelling attack or summon)
+              // Clear attack declaration to negate attack
+              state.attackDeclaration = null;
+              break;
+            }
+          }
+        }
+
         // Normal trap goes to graveyard after activation
         if (slot.card.trapType === 'normal') {
           player.graveyard.push(slot.card);
@@ -200,7 +256,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           slot.isOccupied = false;
         }
 
-        set({ players: { ...state.players, [action.playerId]: player } });
+        set({ 
+          players: { ...state.players, [action.playerId]: player, [action.playerId === 'p1' ? 'p2' : 'p1']: opponent },
+          attackDeclaration: state.attackDeclaration 
+        });
         break;
       }
 

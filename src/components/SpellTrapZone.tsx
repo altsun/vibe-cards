@@ -31,7 +31,7 @@ export const SpellTrapZone: React.FC<SpellTrapZoneProps> = ({
                 faceDown={slot.card.isFaceDown}
                 isSet={slot.card.isSet}
                 isOwner={isOwner}
-                onClick={() => !slot.card!.isFaceDown && onCardActivate?.(slot.card!)}
+                onClick={() => isOwner && onCardActivate?.(slot.card!)}
               />
             ) : (
               <div className="empty-slot" />
