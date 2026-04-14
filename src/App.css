@@ -122,19 +122,25 @@ body {
   flex-direction: column;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.2s, z-index 0s;
   font-size: 0.65rem;
   position: relative;
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: scale(2.5);
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .card.compact {
   width: 60px;
   height: 85px;
   font-size: 0.5rem;
+}
+
+.card.compact:hover {
+  transform: scale(3);
 }
 
 .card-back {
