@@ -71,6 +71,42 @@ export const GameBoard: React.FC = () => {
     dispatch({ type: 'END_TURN' });
   };
 
+  // Battle phase attack logic
+  const [selectedAttacker, setSelectedAttacker] = React.useState<string | null>(null);
+
+  const handleCreatureClick = (creature: import('../types/card').CardInstance) => {
+    if (phase !== 'battle' || !isPlayerTurn) return;
+    
+    // Check if it's player's creature and hasn't attacked
+    if (creature.ownerId === player.id && !creature.hasAttacked && creature.attack && creature.attack > 0) {
+      setSelectedAttacker(creature.instanceId);
+    }
+  };
+
+  const handleTargetClick = (target: import('../types/card').CardInstance) => {
+    if (phase !== 'battle' || !isPlayerTurn || !selectedAttacker) return;
+    
+    dispatch({
+      type: 'DECLARE_ATTACK',
+      playerId: player.id,
+      attackerId: selectedAttacker,
+      targetId: target.instanceId
+    });
+    setSelectedAttacker(null);
+  };
+
+  const handleDirectAttack = () => {
+    if (phase !== 'battle' || !isPlayerTurn || !selectedAttacker) return;
+    
+    dispatch({
+      type: 'DECLARE_ATTACK',
+      playerId: player.id,
+      attackerId: selectedAttacker,
+      targetId: 'direct'
+    });
+    setSelectedAttacker(null);
+  };
+
   const handleCardClick = (card: import('../types/card').CardInstance) => {
     if (phase !== 'main' || !isPlayerTurn) return;
 
@@ -133,6 +169,8 @@ export const GameBoard: React.FC = () => {
           creatures={ai.creatureZone} 
           isOwner={false}
           attackingCreatureId={attackDeclaration?.attacker}
+          isTargetZone={phase === 'battle' && isPlayerTurn && selectedAttacker !== null}
+          onTargetClick={handleTargetClick}
         />
       </div>
 
@@ -146,6 +184,9 @@ export const GameBoard: React.FC = () => {
         <div className="phase-controls">
           <button onClick={handleNextPhase} disabled={!isPlayerTurn}>Next Phase</button>
           <button onClick={handleEndTurn} disabled={!isPlayerTurn}>End Turn</button>
+          {phase === 'battle' && isPlayerTurn && selectedAttacker && (
+            <button onClick={handleDirectAttack} className="direct-attack-btn">Direct Attack</button>
+          )}
         </div>
       </div>
 
@@ -154,7 +195,8 @@ export const GameBoard: React.FC = () => {
         <CreatureZone 
           creatures={player.creatureZone} 
           isOwner={true}
-          attackingCreatureId={attackDeclaration?.attacker}
+          attackingCreatureId={selectedAttacker || attackDeclaration?.attacker}
+          onCreatureClick={handleCreatureClick}
         />
         <SpellTrapZone 
           zones={player.spellTrapZone} 

@@ -346,9 +346,24 @@ body {
   transition: all 0.2s;
 }
 
+.phase-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .phase-controls button:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+}
+
+.direct-attack-btn {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a) !important;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .loading {
