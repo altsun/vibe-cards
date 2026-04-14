@@ -23,7 +23,9 @@
 - ✅ **Summoning sickness** - Creatures can't attack on summon turn (unless Charge)
 - ✅ **Continuous spell buffs** - Effective stats calculation in combat
 - ✅ **Card tooltip** - Hover to see full card info
-- ✅ **Trap effects** - Mirror Force, Magic Cylinder, Solemn Warning, Trap Hole
+- ✅ **Auto-trap system** - Traps auto-activate based on trigger conditions
+- ✅ **Optimized layout** - Fits screen without scrolling
+- ✅ **Title positioning** - Left side of board, vertically centered
 
 ### Card Database (16 cards)
 **Creatures (4)**: Fire Dragon (7/5), Stone Golem (4/10), Shadow Assassin (6/3), Skeleton Warrior (5/4)
@@ -42,7 +44,10 @@
 1. **Summoning Sickness**: Creatures summoned this turn cannot attack (unless has Charge keyword)
 2. **Combat**: Both creatures deal damage equal to their ATK to each other's HP simultaneously
 3. **Continuous Spells**: Apply buffs immediately, affect all valid creatures, show as golden text
-4. **Traps**: Set face-down from hand, click to activate during opponent's turn
+4. **Traps**: Set face-down from hand, auto-activate when conditions are met:
+   - Mirror Force / Magic Cylinder: When opponent creature attacks
+   - Trap Hole: When opponent summons creature with 6+ ATK
+   - Solemn Warning: When opponent summons or casts spell
 5. **Player Attack**: In Battle Phase, click your creature to select attacker, then click target or "Direct Attack" button
 
 ### Recent Major Changes (2026-04-14)
@@ -50,17 +55,21 @@
 2. **Stat Scale Update**: All creature stats now in 1-10 range
 3. **Summoning Sickness**: New mechanic preventing immediate attacks
 4. **Continuous Spell Fix**: Buffs now properly calculated in combat via `getEffectiveStats()`
-5. **Trap Effects**: Full implementation with destroy/damage/negate effects
-6. **Player Combat**: Full attack system with attacker/target selection
-7. **UI Improvements**: Card tooltip on hover, no more zone blinking, cleaner layout
+5. **Auto-Trap System**: Traps now auto-trigger based on conditions (no manual activation needed)
+6. **Trap Effects**: Full implementation with destroy/damage/negate effects
+7. **Player Combat**: Full attack system with attacker/target selection
+8. **UI Improvements**: 
+   - Card tooltip on hover
+   - Layout optimized to fit screen without scrolling
+   - Title positioned on left side of board
+   - No more zone blinking effect
 
 ### Known Issues / TODO
 - [ ] Deathrattle effects not fully implemented
-- [ ] Trap auto-trigger system (currently manual activation only)
+- [ ] Equip spells don't actually attach to specific creatures yet
 - [ ] No card images (using placeholders)
 - [ ] No animations
 - [ ] No sound effects
-- [ ] Equip spells don't actually attach to specific creatures yet
 - [ ] Deck builder UI
 
 ### Architecture Decisions
@@ -72,17 +81,17 @@
 
 ### Key Functions
 - `getEffectiveStats(creature, player)` - Calculate buffed ATK/HP from continuous spells
+- `checkAndActivateTraps(triggerType, context, player, opponent)` - Auto-check and activate traps based on conditions
 - Creature selection in Battle Phase → target selection → attack dispatch
 
 ### Next Session Ideas
 1. Add card images/artwork system
 2. Implement Framer Motion animations
-3. Add trap auto-trigger on conditions
-4. Complete Deathrattle effects
-5. Add deck builder UI
-6. Add sound effects
-7. Implement equip spell attachment to specific creatures
-8. Add game log/history
+3. Complete Deathrattle effects
+4. Add deck builder UI
+5. Add sound effects
+6. Implement equip spell attachment to specific creatures
+7. Add game log/history
 
 ## Development Notes
 

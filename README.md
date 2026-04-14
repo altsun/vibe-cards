@@ -11,7 +11,7 @@ A strategic card battle game inspired by Yu-Gi-Oh!, built with React + TypeScrip
 - **Mana System**: Gain 1 mana per turn (max 10) to play cards
 - **Combat System**: ATK vs HP (simultaneous damage)
 - **AI Opponent**: Strategic AI with effective stat calculation
-- **Trap System**: Manual activation with full effect support
+- **Trap System**: Auto-trigger based on conditions (onAttack, onSummon, onCardPlay)
 - **Card Tooltip**: Hover to see full card details
 - **Summoning Sickness**: Creatures can't attack on summon turn
 
@@ -34,7 +34,7 @@ A strategic card battle game inspired by Yu-Gi-Oh!, built with React + TypeScrip
 ### Game Rules
 - **Summoning Sickness**: Creatures can't attack on the turn they're summoned (unless they have Charge)
 - **Continuous Spells**: Buffs apply immediately and affect all valid creatures
-- **Trap Activation**: Click your face-down trap to activate it during opponent's turn
+- **Trap Activation**: Traps auto-activate when conditions are met (no manual click needed)
 - **Combat Damage**: Both creatures deal damage to each other's HP simultaneously
 
 ## Tech Stack
@@ -114,6 +114,11 @@ The AI opponent follows this priority:
 
 ## Future Improvements
 
+- [x] Optimized layout (no scrolling, fits screen)
+- [x] Title positioning (left side of board)
+- [x] Trap auto-trigger system (fully implemented!)
+- [x] Continuous spell buffs in combat
+- [x] Summoning sickness mechanic
 - [ ] Card images/artwork
 - [ ] Animation system (Framer Motion)
 - [ ] Sound effects
@@ -121,10 +126,6 @@ The AI opponent follows this priority:
 - [ ] Save/load game state
 - [ ] Multiplayer support
 - [ ] More cards and abilities
-- [x] Trap card effects (Mirror Force, Magic Cylinder, etc.)
-- [ ] Trap auto-trigger system (currently manual activation)
-- [x] Continuous spell buffs in combat
-- [x] Summoning sickness mechanic
 
 ## License
 
