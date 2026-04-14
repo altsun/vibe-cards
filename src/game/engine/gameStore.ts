@@ -12,8 +12,8 @@ interface GameStore extends GameState {
 const createInitialPlayer = (id: string, name: string): Player => ({
   id,
   name,
-  hp: 4000,
-  maxHp: 4000,
+  hp: 20,
+  maxHp: 20,
   mana: 0,
   maxMana: 0,
   deck: [],
@@ -185,10 +185,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // New turn
           const nextPlayerId = state.currentPlayerId === 'p1' ? 'p2' : 'p1';
           const nextPlayer = state.players[nextPlayerId];
+          const currentPlayer = state.players[state.currentPlayerId];
           
           // Reset set traps
           nextPlayer.spellTrapZone.forEach(slot => {
             if (slot.card?.isSet) slot.card.isSet = false;
+          });
+          
+          // Reset hasAttacked for current player creatures
+          currentPlayer.creatureZone.forEach(creature => {
+            if (creature) creature.hasAttacked = false;
           });
 
           updates = {
@@ -196,6 +202,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             currentPlayerId: nextPlayerId,
             phase: 'draw',
             attackDeclaration: null,
+            players: { ...state.players, [nextPlayerId]: nextPlayer, [state.currentPlayerId]: currentPlayer },
           };
         } else if (nextPhase === 'resource') {
           const currentPlayer = state.players[state.currentPlayerId];
@@ -216,23 +223,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const attackerIndex = player.creatureZone.findIndex(c => c?.instanceId === action.attackerId);
         if (attackerIndex === -1) break;
         const attacker = player.creatureZone[attackerIndex]!;
+        
+        // Check if already attacked this turn
+        if (attacker.hasAttacked) break;
 
         if (action.targetId === 'direct') {
-          // Direct attack - deal damage to opponent
+          // Direct attack - deal damage to opponent player
           const damage = attacker.attack || 0;
           opponent.hp = Math.max(0, opponent.hp - damage);
         } else {
-          // Attack a creature
+          // Attack a creature - ATK vs HP system
           const targetIndex = opponent.creatureZone.findIndex(c => c?.instanceId === action.targetId);
           if (targetIndex === -1) break;
           
           const target = opponent.creatureZone[targetIndex]!;
           const attackerAtk = attacker.attack || 0;
-          const targetDef = target.defense || 0;
+          const targetAtk = target.attack || 0;
 
-          // Calculate damage
-          if (attackerAtk > targetDef) {
-            // Destroy target
+          // Both creatures deal damage to each other's HP simultaneously
+          // Attacker deals its ATK as damage to target's HP
+          const targetRemainingHp = (target.remainingHp ?? target.hp ?? 0) - attackerAtk;
+          // Target deals its ATK as damage to attacker's HP
+          const attackerRemainingHp = (attacker.remainingHp ?? attacker.hp ?? 0) - targetAtk;
+          
+          // Apply damage to target
+          if (targetRemainingHp <= 0) {
+            // Target destroyed
             opponent.graveyard.push(target);
             opponent.creatureZone[targetIndex] = null;
             
@@ -240,17 +256,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
             if (target.keywords?.includes('deathrattle') && target.onDeath) {
               // TODO: Handle deathrattle effects
             }
+          } else {
+            target.remainingHp = targetRemainingHp;
           }
           
-          // Attacker takes damage too
-          const remainingHealth = (attacker.remainingHealth || attacker.defense || 0) - Math.max(0, targetDef - attackerAtk);
-          if (remainingHealth <= 0) {
+          // Apply damage to attacker
+          if (attackerRemainingHp <= 0) {
+            // Attacker destroyed
             player.graveyard.push(attacker);
             player.creatureZone[attackerIndex] = null;
+            
+            // Check for deathrattle
+            if (attacker.keywords?.includes('deathrattle') && attacker.onDeath) {
+              // TODO: Handle deathrattle effects
+            }
           } else {
-            attacker.remainingHealth = remainingHealth;
+            attacker.remainingHp = attackerRemainingHp;
           }
         }
+        
+        // Mark as attacked
+        attacker.hasAttacked = true;
 
         // Check for game over
         let gameOver = false;
@@ -275,6 +301,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       case 'END_TURN': {
         const nextPlayerId = state.currentPlayerId === 'p1' ? 'p2' : 'p1';
         const nextPlayer = state.players[nextPlayerId];
+        const currentPlayer = state.players[state.currentPlayerId];
+        
+        // Reset hasAttacked for all creatures of current player
+        currentPlayer.creatureZone.forEach(creature => {
+          if (creature) creature.hasAttacked = false;
+        });
+        
+        // Clear attack declaration
+        nextPlayer.creatureZone.forEach(creature => {
+          if (creature) creature.hasAttacked = false;
+        });
         
         nextPlayer.spellTrapZone.forEach(slot => {
           if (slot.card?.isSet) slot.card.isSet = false;
@@ -285,7 +322,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           currentPlayerId: nextPlayerId,
           phase: 'draw',
           attackDeclaration: null,
-          players: { ...state.players, [nextPlayerId]: nextPlayer },
+          players: { ...state.players, [nextPlayerId]: nextPlayer, [state.currentPlayerId]: currentPlayer },
         });
         break;
       }

@@ -124,6 +124,7 @@ body {
   cursor: pointer;
   transition: transform 0.2s;
   font-size: 0.65rem;
+  position: relative;
 }
 
 .card:hover {
@@ -259,7 +260,7 @@ body {
   color: #ff6b6b;
 }
 
-.stat.def {
+.stat.hp {
   color: #4ecdc4;
 }
 
@@ -400,4 +401,47 @@ body {
 
 .game-over button:hover {
   transform: scale(1.05);
+}
+
+/* Attacking creature highlight - subtle indication */
+.card.attacking {
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.6);
+  border: 2px solid #ff6b6b !important;
+}
+
+
+.zone-slot.targetable {
+  animation: target-pulse 1.5s ease-in-out infinite;
+  cursor: pointer;
+}
+
+@keyframes target-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px #4ecdc4, inset 0 0 10px rgba(78, 205, 196, 0.2);
+    border: 2px solid #4ecdc4;
+  }
+  50% {
+    box-shadow: 0 0 20px #4ecdc4, inset 0 0 20px rgba(78, 205, 196, 0.4);
+    border: 2px solid #4ecdc4;
+  }
+}
+
+.zone-slot.targetable:hover {
+  box-shadow: 0 0 30px #4ecdc4, inset 0 0 30px rgba(78, 205, 196, 0.6);
+  border: 2px solid #4ecdc4;
+}
+
+/* Set badge for newly set cards */
+.set-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #ff6b6b;
+  color: white;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }

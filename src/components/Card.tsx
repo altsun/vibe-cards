@@ -7,6 +7,7 @@ interface CardProps {
   isSet?: boolean;
   isOwner?: boolean;
   compact?: boolean;
+  isAttacking?: boolean;
   onClick?: () => void;
 }
 
@@ -38,6 +39,7 @@ export const Card: React.FC<CardProps> = ({
   isSet = false,
   isOwner = true,
   compact = false,
+  isAttacking = false,
   onClick,
 }) => {
   // Show card back if face down and not owner
@@ -61,10 +63,11 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
-      className={`card ${compact ? 'compact' : ''}`}
+      className={`card ${compact ? 'compact' : ''} ${isAttacking ? 'attacking' : ''} ${isSet ? 'just-set' : ''}`}
       style={{ borderColor: getCardTypeColor(card.type) }}
       onClick={onClick}
     >
+      {isSet && <div className="set-badge">SET</div>}
       <div className="card-header" style={{ backgroundColor: getCardTypeColor(card.type) }}>
         <div className="card-cost">{card.cost}</div>
         <div className="card-name">{card.name}</div>
@@ -83,7 +86,7 @@ export const Card: React.FC<CardProps> = ({
         {card.type === 'creature' && (
           <div className="creature-stats">
             <span className="stat atk">{card.attack}</span>
-            <span className="stat def">{card.defense}</span>
+            <span className="stat hp">{card.remainingHp ?? card.hp}/{card.hp}</span>
           </div>
         )}
         

@@ -13,14 +13,19 @@ export const GameBoard: React.FC = () => {
     currentPlayerId, 
     phase, 
     gameOver,
+    players,
+    attackDeclaration,
     initializeGame, 
-    dispatch,
-    getCurrentPlayer,
-    getOpponent 
+    dispatch
   } = useGameStore();
+  
+  // State to trigger AI continuous decisions
+  const [aiPending, setAiPending] = React.useState(0);
 
-  const currentPlayer = getCurrentPlayer();
-  const opponent = getOpponent();
+  // Fixed positions: Player (p1) always at bottom, AI (p2) always at top
+  const player = players.p1;
+  const ai = players.p2;
+  const isPlayerTurn = currentPlayerId === 'p1';
 
   React.useEffect(() => {
     if (!currentPlayerId) {
@@ -39,7 +44,7 @@ export const GameBoard: React.FC = () => {
     }
   }, [currentPlayerId, phase, gameOver, dispatch]);
 
-  // AI Turn
+  // AI Turn - continuously makes decisions until end turn
   React.useEffect(() => {
     if (currentPlayerId === 'p2' && !gameOver) {
       const state = useGameStore.getState();
@@ -48,11 +53,15 @@ export const GameBoard: React.FC = () => {
       if (action) {
         const delay = setTimeout(() => {
           dispatch(action);
-        }, 1000); // 1 second delay for AI actions
+          // Continue AI decisions after action completes
+          if (action.type !== 'END_TURN') {
+            setAiPending(prev => prev + 1);
+          }
+        }, 1000);
         return () => clearTimeout(delay);
       }
     }
-  }, [currentPlayerId, phase, turn, gameOver, dispatch]);
+  }, [currentPlayerId, phase, turn, gameOver, dispatch, aiPending]);
 
   const handleNextPhase = () => {
     dispatch({ type: 'NEXT_PHASE' });
@@ -63,25 +72,25 @@ export const GameBoard: React.FC = () => {
   };
 
   const handleCardClick = (card: import('../types/card').CardInstance) => {
-    if (phase !== 'main') return;
+    if (phase !== 'main' || !isPlayerTurn) return;
 
     switch (card.type) {
       case 'creature': {
-        const emptyPosition = currentPlayer.creatureZone.findIndex(c => c === null);
+        const emptyPosition = player.creatureZone.findIndex((c: any) => c === null);
         if (emptyPosition !== -1) {
-          dispatch({ type: 'SUMMON_CREATURE', playerId: currentPlayer.id, cardId: card.instanceId, position: emptyPosition });
+          dispatch({ type: 'SUMMON_CREATURE', playerId: player.id, cardId: card.instanceId, position: emptyPosition });
         }
         break;
       }
       case 'normalSpell':
       case 'continuousSpell':
       case 'equipSpell':
-        dispatch({ type: 'CAST_SPELL', playerId: currentPlayer.id, cardId: card.instanceId });
+        dispatch({ type: 'CAST_SPELL', playerId: player.id, cardId: card.instanceId });
         break;
       case 'trap': {
-        const emptySlot = currentPlayer.spellTrapZone.findIndex(s => !s.isOccupied);
+        const emptySlot = player.spellTrapZone.findIndex((s: any) => !s.isOccupied);
         if (emptySlot !== -1) {
-          dispatch({ type: 'SET_TRAP', playerId: currentPlayer.id, cardId: card.instanceId, position: emptySlot });
+          dispatch({ type: 'SET_TRAP', playerId: player.id, cardId: card.instanceId, position: emptySlot });
         }
         break;
       }
@@ -93,7 +102,7 @@ export const GameBoard: React.FC = () => {
   }
 
   if (gameOver) {
-    const winnerName = currentPlayerId === 'p1' ? currentPlayer.name : opponent.name;
+    const winnerName = useGameStore.getState().winner === 'p1' ? player.name : ai.name;
     const isPlayerWinner = useGameStore.getState().winner === 'p1';
     return (
       <div className="game-over">
@@ -107,22 +116,23 @@ export const GameBoard: React.FC = () => {
 
   return (
     <div className="game-board">
-      {/* Opponent Area */}
+      {/* AI Area (always at top) */}
       <div className="opponent-area">
         <div className="player-info">
-          <span className="player-name">{opponent.name}</span>
-          <span className="player-hp">HP: {opponent.hp}</span>
-          <span className="player-mana">Mana: {opponent.mana}</span>
-          <span className="deck-count">Deck: {opponent.deck.length}</span>
+          <span className="player-name">{ai.name}</span>
+          <span className="player-hp">HP: {ai.hp}</span>
+          <span className="player-mana">Mana: {ai.mana}</span>
+          <span className="deck-count">Deck: {ai.deck.length}</span>
         </div>
-        <Hand cards={opponent.hand} hidden={true} />
+        <Hand cards={ai.hand} hidden={true} />
         <SpellTrapZone 
-          zones={opponent.spellTrapZone} 
+          zones={ai.spellTrapZone} 
           isOwner={false}
         />
         <CreatureZone 
-          creatures={opponent.creatureZone} 
+          creatures={ai.creatureZone} 
           isOwner={false}
+          attackingCreatureId={attackDeclaration?.attacker}
         />
       </div>
 
@@ -131,33 +141,34 @@ export const GameBoard: React.FC = () => {
         <div className="turn-info">
           <span>Turn {turn}</span>
           <span>Phase: {phase.toUpperCase()}</span>
-          <span>Current: {currentPlayer.name}</span>
+          <span>Current: {isPlayerTurn ? player.name : ai.name}</span>
         </div>
         <div className="phase-controls">
-          <button onClick={handleNextPhase}>Next Phase</button>
-          <button onClick={handleEndTurn}>End Turn</button>
+          <button onClick={handleNextPhase} disabled={!isPlayerTurn}>Next Phase</button>
+          <button onClick={handleEndTurn} disabled={!isPlayerTurn}>End Turn</button>
         </div>
       </div>
 
-      {/* Current Player Area */}
+      {/* Player Area (always at bottom) */}
       <div className="current-player-area">
         <CreatureZone 
-          creatures={currentPlayer.creatureZone} 
+          creatures={player.creatureZone} 
           isOwner={true}
+          attackingCreatureId={attackDeclaration?.attacker}
         />
         <SpellTrapZone 
-          zones={currentPlayer.spellTrapZone} 
+          zones={player.spellTrapZone} 
           isOwner={true}
           onCardActivate={(card) => {
-            dispatch({ type: 'ACTIVATE_TRAP', playerId: currentPlayer.id, cardId: card.instanceId });
+            dispatch({ type: 'ACTIVATE_TRAP', playerId: player.id, cardId: card.instanceId });
           }}
         />
-        <Hand cards={currentPlayer.hand} onCardClick={handleCardClick} />
+        <Hand cards={player.hand} onCardClick={handleCardClick} />
         <div className="player-info">
-          <span className="player-name">{currentPlayer.name}</span>
-          <span className="player-hp">HP: {currentPlayer.hp}</span>
-          <span className="player-mana">Mana: {currentPlayer.mana}/{currentPlayer.maxMana}</span>
-          <span className="deck-count">Deck: {currentPlayer.deck.length}</span>
+          <span className="player-name">{player.name}</span>
+          <span className="player-hp">HP: {player.hp}</span>
+          <span className="player-mana">Mana: {player.mana}/{player.maxMana}</span>
+          <span className="deck-count">Deck: {player.deck.length}</span>
         </div>
       </div>
     </div>

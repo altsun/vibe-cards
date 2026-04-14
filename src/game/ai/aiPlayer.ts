@@ -111,11 +111,12 @@ export class AIPlayer {
   }
 
   private decideBattlePhase(player: Player, opponent: Player): GameAction | null {
-    // Find creatures that can attack
-    const attackingCreatures = player.creatureZone.filter(c => 
-      c !== null && c.attack && c.attack > 0
+    // Find creatures that can attack (haven't attacked this turn)
+    const attackingCreatures = player.creatureZone.filter(c =>
+      c !== null && c.attack && c.attack > 0 && !c.hasAttacked
     ) as CardInstance[];
 
+    // No more creatures can attack, end battle phase
     if (attackingCreatures.length === 0) {
       return { type: 'NEXT_PHASE' };
     }
@@ -123,14 +124,14 @@ export class AIPlayer {
     // Find opponent creatures
     const opponentCreatures = opponent.creatureZone.filter(c => c !== null) as CardInstance[];
 
-    // If opponent has creatures, attack the weakest one
-    if (opponentCreatures.length > 0) {
-      opponentCreatures.sort((a, b) => (a.defense || 0) - (b.defense || 0));
-      const target = opponentCreatures[0];
+    // Sort attackers by attack power (strongest first)
+    attackingCreatures.sort((a, b) => (b.attack || 0) - (a.attack || 0));
+    const attacker = attackingCreatures[0];
 
-      // Find strongest attacker
-      attackingCreatures.sort((a, b) => (b.attack || 0) - (a.attack || 0));
-      const attacker = attackingCreatures[0];
+    // If opponent has creatures, attack the one with lowest HP
+    if (opponentCreatures.length > 0) {
+      opponentCreatures.sort((a, b) => ((a.remainingHp ?? a.hp) || 0) - ((b.remainingHp ?? b.hp) || 0));
+      const target = opponentCreatures[0];
 
       return {
         type: 'DECLARE_ATTACK',
@@ -141,7 +142,6 @@ export class AIPlayer {
     }
 
     // No opponent creatures, attack directly
-    const attacker = attackingCreatures[0];
     return {
       type: 'DECLARE_ATTACK',
       playerId: this.playerId,

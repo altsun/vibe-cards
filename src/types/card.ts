@@ -12,7 +12,8 @@ export interface CardDefinition {
   
   // Creature stats
   attack?: number;
-  defense?: number;
+  hp?: number;
+  maxHp?: number;
   keywords?: Keyword[];
   
   // Spell/Trap specific
@@ -36,13 +37,13 @@ export interface Effect {
 
 export interface ContinuousEffect {
   type: 'globalBuff' | 'fieldControl' | 'resourceBonus';
-  stat?: 'attack' | 'defense';
+  stat?: 'attack' | 'hp';
   value?: number;
   condition?: string;
 }
 
 export interface EquipEffect {
-  stat: 'attack' | 'defense';
+  stat: 'attack' | 'hp';
   value: number;
   onUnequip?: Effect;
 }
@@ -58,7 +59,8 @@ export interface CardInstance extends CardDefinition {
   isFaceDown: boolean;
   isSet: boolean;
   equipTarget?: string;
-  remainingHealth?: number;
+  remainingHp?: number;
+  hasAttacked?: boolean; // Track if creature has attacked this turn
 }
 
 export interface SpellTrapZoneSlot {
