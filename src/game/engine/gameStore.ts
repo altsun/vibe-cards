@@ -29,6 +29,102 @@ export function getEffectiveStats(creature: CardInstance, player: Player): { att
   };
 }
 
+// Helper function to check and auto-activate traps
+function checkAndActivateTraps(
+  triggerType: 'onAttackDeclared' | 'onCardPlayed' | 'onCreatureSummoned' | 'onDamageTaken' | 'onPhaseChange',
+  context: {
+    attackerId?: string;
+    targetId?: string;
+    cardId?: string;
+    creatureAttack?: number;
+  },
+  player: Player,
+  opponent: Player
+): { trapActivated: boolean; updatedPlayer: Player; updatedOpponent: Player; shouldNegate?: boolean } {
+  let trapActivated = false;
+  let shouldNegate = false;
+  
+  // Check all set traps in player's spell/trap zone
+  player.spellTrapZone.forEach((slot, slotIndex) => {
+    const trap = slot.card;
+    if (!trap || !trap.isSet || !trap.isFaceDown) return;
+    
+    const condition = trap.triggerCondition;
+    if (!condition || condition.type !== triggerType) return;
+    
+    // Check specific conditions
+    let shouldActivate = true;
+    
+    // Trap Hole: only activate if creature has 6+ ATK
+    if (trap.id === 't004' && triggerType === 'onCreatureSummoned') {
+      const attackerStats = context.creatureAttack || 0;
+      if (attackerStats < 6) {
+        shouldActivate = false;
+      }
+    }
+    
+    if (shouldActivate) {
+      trapActivated = true;
+      
+      // Activate the trap
+      trap.isFaceDown = false;
+      trap.isSet = false;
+      
+      // Execute trap effect
+      const effect = trap.onActivate;
+      if (effect) {
+        switch (effect.type) {
+          case 'destroy': {
+            if (effect.target === 'allCreatures') {
+              // Destroy all creatures on field
+              opponent.creatureZone.forEach((c, i) => {
+                if (c) {
+                  opponent.graveyard.push(c);
+                  opponent.creatureZone[i] = null;
+                }
+              });
+            } else if (effect.target === 'creature' && context.cardId) {
+              // Destroy specific creature (e.g., Trap Hole target)
+              const targetIndex = opponent.creatureZone.findIndex(c => c?.instanceId === context.cardId);
+              if (targetIndex !== -1 && opponent.creatureZone[targetIndex]) {
+                const target = opponent.creatureZone[targetIndex]!;
+                opponent.graveyard.push(target);
+                opponent.creatureZone[targetIndex] = null;
+              }
+            }
+            break;
+          }
+          case 'damage': {
+            if (effect.target === 'opponent' && context.attackerId) {
+              // Deal damage equal to attacker's ATK
+              const attacker = opponent.creatureZone.find(c => c?.instanceId === context.attackerId);
+              if (attacker) {
+                const damage = attacker.attack || 0;
+                opponent.hp = Math.max(0, opponent.hp - damage);
+              }
+            }
+            break;
+          }
+          case 'negate': {
+            // Mark for negation
+            shouldNegate = true;
+            break;
+          }
+        }
+      }
+      
+      // Normal trap goes to graveyard after activation
+      if (trap.trapType === 'normal') {
+        player.graveyard.push(trap);
+        player.spellTrapZone[slotIndex].card = null;
+        player.spellTrapZone[slotIndex].isOccupied = false;
+      }
+    }
+  });
+  
+  return { trapActivated, updatedPlayer: player, updatedOpponent: opponent, shouldNegate };
+}
+
 interface GameStore extends GameState {
   initializeGame: (playerNames: [string, string]) => void;
   dispatch: (action: GameAction) => void;
@@ -131,7 +227,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // Track when creature was summoned (for summoning sickness)
         card.turnSummoned = state.turn;
         
-        set({ players: { ...state.players, [action.playerId]: player } });
+        // Check opponent's traps for onCreatureSummoned trigger (e.g., Trap Hole)
+        const opponent = state.players[action.playerId === 'p1' ? 'p2' : 'p1'];
+        const trapResult = checkAndActivateTraps(
+          'onCreatureSummoned',
+          { cardId: card.instanceId, creatureAttack: card.attack },
+          opponent,
+          player
+        );
+        
+        // Update players after trap effects
+        if (trapResult.trapActivated) {
+          state.players[action.playerId === 'p1' ? 'p2' : 'p1'] = trapResult.updatedPlayer;
+          state.players[action.playerId] = trapResult.updatedOpponent;
+        }
+        
+        set({ players: { ...state.players, [action.playerId]: player, [action.playerId === 'p1' ? 'p2' : 'p1']: opponent } });
         break;
       }
 
@@ -158,30 +269,47 @@ export const useGameStore = create<GameStore>((set, get) => ({
             player.spellTrapZone[emptySlot].card = card;
             player.spellTrapZone[emptySlot].isOccupied = true;
           } else {
-            player.graveyard.push(card); // No space
+            player.graveyard.push(card);
           }
         }
-
-        set({ players: { ...state.players, [action.playerId]: player } });
-        break;
-      }
-
-      case 'SET_TRAP': {
-        const player = state.players[action.playerId];
-        const cardIndex = player.hand.findIndex(c => c.instanceId === action.cardId);
-        if (cardIndex === -1) break;
-
-        const card = player.hand.splice(cardIndex, 1)[0];
         
-        const emptySlot = player.spellTrapZone.findIndex(s => !s.isOccupied);
-        if (emptySlot !== -1) {
-          card.isFaceDown = true;
-          card.isSet = true;
-          player.spellTrapZone[emptySlot].card = card;
-          player.spellTrapZone[emptySlot].isOccupied = true;
+        // Check opponent's traps for onCardPlayed trigger (e.g., Solemn Warning)
+        const opponent = state.players[action.playerId === 'p1' ? 'p2' : 'p1'];
+        const trapResult = checkAndActivateTraps(
+          'onCardPlayed',
+          { cardId: card.instanceId },
+          opponent,
+          player
+        );
+        
+        // If negate trap activated, put the card back and refund mana
+        if (trapResult.shouldNegate) {
+          player.mana += card.cost;
+          // Return card to hand based on where it went
+          if (card.type === 'normalSpell') {
+            // Remove from graveyard
+            const graveIndex = player.graveyard.findIndex(c => c.instanceId === card.instanceId);
+            if (graveIndex !== -1) player.graveyard.splice(graveIndex, 1);
+          } else {
+            // Remove from zone
+            const zoneSlot = player.spellTrapZone.findIndex(s => s.card?.instanceId === card.instanceId);
+            if (zoneSlot !== -1) {
+              player.spellTrapZone[zoneSlot].card = null;
+              player.spellTrapZone[zoneSlot].isOccupied = false;
+            }
+          }
+          player.hand.push(card);
+          set({ players: { ...state.players, [action.playerId]: player, [action.playerId === 'p1' ? 'p2' : 'p1']: opponent } });
+          break;
+        }
+        
+        // Update players after trap effects
+        if (trapResult.trapActivated) {
+          state.players[action.playerId === 'p1' ? 'p2' : 'p1'] = trapResult.updatedPlayer;
+          state.players[action.playerId] = trapResult.updatedOpponent;
         }
 
-        set({ players: { ...state.players, [action.playerId]: player } });
+        set({ players: { ...state.players, [action.playerId]: player, [action.playerId === 'p1' ? 'p2' : 'p1']: opponent } });
         break;
       }
 
@@ -325,18 +453,55 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // Get effective stats including continuous spell buffs
         const attackerStats = getEffectiveStats(attacker, player);
         
+        // Check opponent's traps for onAttackDeclared trigger (auto-activation)
+        const trapResult = checkAndActivateTraps(
+          'onAttackDeclared',
+          { attackerId: action.attackerId, targetId: action.targetId },
+          opponent, // Opponent's traps should activate
+          player    // Attacker is the "opponent" from trap's perspective
+        );
+        
+        // If negate trap activated, cancel this attack
+        if (trapResult.shouldNegate) {
+          // Attack was negated - don't mark as attacked, don't deal damage
+          set({ 
+            players: { ...state.players, [action.playerId]: player, [action.playerId === 'p1' ? 'p2' : 'p1']: opponent },
+            attackDeclaration: null
+          });
+          break;
+        }
+        
+        // Update players after trap effects
+        if (trapResult.trapActivated) {
+          state.players[action.playerId === 'p1' ? 'p2' : 'p1'] = trapResult.updatedPlayer;
+          state.players[action.playerId] = trapResult.updatedOpponent;
+        }
+        
+        // Re-fetch player/opponent after potential trap modifications
+        const updatedPlayer = state.players[action.playerId];
+        const updatedOpponent = state.players[action.playerId === 'p1' ? 'p2' : 'p1'];
+        
+        // Re-check if attacker still exists (might have been destroyed by trap)
+        const updatedAttackerIndex = updatedPlayer.creatureZone.findIndex(c => c?.instanceId === action.attackerId);
+        if (updatedAttackerIndex === -1) {
+          // Attacker was destroyed by trap, attack cancelled
+          set({ players: state.players });
+          break;
+        }
+        const updatedAttacker = updatedPlayer.creatureZone[updatedAttackerIndex]!;
+        
         if (action.targetId === 'direct') {
           // Direct attack - deal damage to opponent player
           const damage = attackerStats.attack;
-          opponent.hp = Math.max(0, opponent.hp - damage);
+          updatedOpponent.hp = Math.max(0, updatedOpponent.hp - damage);
         } else {
           // Attack a creature - ATK vs HP system
-          const targetIndex = opponent.creatureZone.findIndex(c => c?.instanceId === action.targetId);
+          const targetIndex = updatedOpponent.creatureZone.findIndex(c => c?.instanceId === action.targetId);
           if (targetIndex === -1) break;
           
-          const target = opponent.creatureZone[targetIndex]!;
+          const target = updatedOpponent.creatureZone[targetIndex]!;
           // Get target's effective stats
-          const targetStats = getEffectiveStats(target, opponent);
+          const targetStats = getEffectiveStats(target, updatedOpponent);
           
           const attackerAtk = attackerStats.attack;
           const targetAtk = targetStats.attack;
@@ -345,13 +510,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Attacker deals its ATK as damage to target's HP
           const targetRemainingHp = (target.remainingHp ?? target.hp ?? 0) - attackerAtk;
           // Target deals its ATK as damage to attacker's HP
-          const attackerRemainingHp = (attacker.remainingHp ?? attacker.hp ?? 0) - targetAtk;
+          const attackerRemainingHp = (updatedAttacker.remainingHp ?? updatedAttacker.hp ?? 0) - targetAtk;
           
           // Apply damage to target
           if (targetRemainingHp <= 0) {
             // Target destroyed
-            opponent.graveyard.push(target);
-            opponent.creatureZone[targetIndex] = null;
+            updatedOpponent.graveyard.push(target);
+            updatedOpponent.creatureZone[targetIndex] = null;
             
             // Check for deathrattle
             if (target.keywords?.includes('deathrattle') && target.onDeath) {
@@ -364,31 +529,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Apply damage to attacker
           if (attackerRemainingHp <= 0) {
             // Attacker destroyed
-            player.graveyard.push(attacker);
-            player.creatureZone[attackerIndex] = null;
+            updatedPlayer.graveyard.push(updatedAttacker);
+            updatedPlayer.creatureZone[updatedAttackerIndex] = null;
             
             // Check for deathrattle
-            if (attacker.keywords?.includes('deathrattle') && attacker.onDeath) {
+            if (updatedAttacker.keywords?.includes('deathrattle') && updatedAttacker.onDeath) {
               // TODO: Handle deathrattle effects
             }
           } else {
-            attacker.remainingHp = attackerRemainingHp;
+            updatedAttacker.remainingHp = attackerRemainingHp;
           }
         }
         
         // Mark as attacked
-        attacker.hasAttacked = true;
+        updatedAttacker.hasAttacked = true;
 
         // Check for game over
         let gameOver = false;
         let winner: string | null = null;
-        if (opponent.hp <= 0) {
+        if (updatedOpponent.hp <= 0) {
           gameOver = true;
-          winner = player.id;
+          winner = updatedPlayer.id;
         }
 
         set({
-          players: { ...state.players, [action.playerId]: player, [opponent.id]: opponent },
+          players: { ...state.players, [action.playerId]: updatedPlayer, [updatedOpponent.id]: updatedOpponent },
           attackDeclaration: {
             attacker: action.attackerId,
             target: action.targetId,
