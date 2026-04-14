@@ -127,9 +127,8 @@ body {
 }
 
 .card:hover {
-  transform: scale(2.5);
   z-index: 1000;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 /* Card Tooltip - Shows full info on hover */
@@ -240,7 +239,7 @@ body {
 }
 
 .card.compact:hover {
-  transform: scale(3);
+  z-index: 1000;
 }
 
 .card-back {
