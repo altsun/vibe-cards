@@ -120,7 +120,6 @@ body {
   border: 2px solid;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s, z-index 0s;
   font-size: 0.65rem;
@@ -136,21 +135,23 @@ body {
 /* Card Tooltip - Shows full info on hover */
 .card-tooltip {
   position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 200px;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  width: 180px;
   background: #1a1a2e;
   border: 2px solid;
+  border-color: inherit;
   border-radius: 8px;
   padding: 0;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s, visibility 0.2s;
-  z-index: 1001;
-  margin-left: 10px;
+  z-index: 9999;
   font-size: 0.75rem;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  margin-bottom: 10px;
 }
 
 .card:hover .card-tooltip {
