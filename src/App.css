@@ -22,17 +22,24 @@ body {
 }
 
 .app-header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 10px;
   flex-shrink: 0;
+  padding-left: 10px;
 }
 
 .app-header h1 {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   background: linear-gradient(90deg, #ffd700, #ff6b6b);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin-bottom: 2px;
+}
+
+.app-header p {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Game Board */
