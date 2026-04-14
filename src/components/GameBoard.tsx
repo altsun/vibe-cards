@@ -77,8 +77,14 @@ export const GameBoard: React.FC = () => {
   const handleCreatureClick = (creature: import('../types/card').CardInstance) => {
     if (phase !== 'battle' || !isPlayerTurn) return;
     
-    // Check if it's player's creature and hasn't attacked
-    if (creature.ownerId === player.id && !creature.hasAttacked && creature.attack && creature.attack > 0) {
+    // Check summoning sickness (cannot attack on turn it was summoned)
+    // Exception: creatures with "charge" keyword can attack immediately
+    const isSummoningSickness = creature.turnSummoned === turn;
+    const hasCharge = creature.keywords?.includes('charge');
+    const canAttack = !isSummoningSickness || hasCharge;
+    
+    // Check if it's player's creature, hasn't attacked, and can attack
+    if (creature.ownerId === player.id && !creature.hasAttacked && creature.attack && creature.attack > 0 && canAttack) {
       setSelectedAttacker(creature.instanceId);
     }
   };
@@ -168,6 +174,7 @@ export const GameBoard: React.FC = () => {
         <CreatureZone 
           creatures={ai.creatureZone} 
           isOwner={false}
+          player={ai}
           attackingCreatureId={attackDeclaration?.attacker}
           isTargetZone={phase === 'battle' && isPlayerTurn && selectedAttacker !== null}
           onTargetClick={handleTargetClick}
@@ -195,6 +202,7 @@ export const GameBoard: React.FC = () => {
         <CreatureZone 
           creatures={player.creatureZone} 
           isOwner={true}
+          player={player}
           attackingCreatureId={selectedAttacker || attackDeclaration?.attacker}
           onCreatureClick={handleCreatureClick}
         />

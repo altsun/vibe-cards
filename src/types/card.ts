@@ -61,6 +61,7 @@ export interface CardInstance extends CardDefinition {
   equipTarget?: string;
   remainingHp?: number;
   hasAttacked?: boolean; // Track if creature has attacked this turn
+  turnSummoned?: number; // Track turn when creature was summoned (for summoning sickness)
 }
 
 export interface SpellTrapZoneSlot {

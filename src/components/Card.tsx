@@ -8,6 +8,8 @@ interface CardProps {
   isOwner?: boolean;
   compact?: boolean;
   isAttacking?: boolean;
+  effectiveAttack?: number;
+  effectiveHp?: number;
   onClick?: () => void;
 }
 
@@ -40,6 +42,8 @@ export const Card: React.FC<CardProps> = ({
   isOwner = true,
   compact = false,
   isAttacking = false,
+  effectiveAttack,
+  effectiveHp,
   onClick,
 }) => {
   // Show card back if face down and not owner
@@ -85,8 +89,12 @@ export const Card: React.FC<CardProps> = ({
       <div className="card-body">
         {card.type === 'creature' && (
           <div className="creature-stats">
-            <span className="stat atk">{card.attack}</span>
-            <span className="stat hp">{card.remainingHp ?? card.hp}/{card.hp}</span>
+            <span className={`stat atk ${effectiveAttack && effectiveAttack !== card.attack ? 'buffed' : ''}`}>
+              {effectiveAttack ?? card.attack}
+            </span>
+            <span className={`stat hp ${effectiveHp && effectiveHp !== card.hp ? 'buffed' : ''}`}>
+              {card.remainingHp ?? card.hp}/{effectiveHp ?? card.hp}
+            </span>
           </div>
         )}
         

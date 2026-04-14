@@ -264,6 +264,11 @@ body {
   color: #4ecdc4;
 }
 
+.stat.buffed {
+  color: #ffd700;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
 .keywords {
   display: flex;
   flex-wrap: wrap;

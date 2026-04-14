@@ -1,6 +1,33 @@
 import { create } from 'zustand';
 import { GameState, Phase, Player, GameAction } from '../../types/game';
+import { CardInstance } from '../../types/card';
 import { cardDatabase, createCardInstance } from '../cards/cardDatabase';
+
+// Calculate effective stats for a creature including continuous spell buffs
+export function getEffectiveStats(creature: CardInstance, player: Player): { attack: number; hp: number } {
+  let attackBonus = 0;
+  let hpBonus = 0;
+  
+  // Check all continuous spells in player's spell/trap zone
+  player.spellTrapZone.forEach(slot => {
+    const card = slot.card;
+    if (card && card.type === 'continuousSpell' && card.continuousEffect) {
+      const effect = card.continuousEffect;
+      if (effect.type === 'globalBuff' && effect.condition === 'ownCreatures') {
+        if (effect.stat === 'attack') {
+          attackBonus += effect.value || 0;
+        } else if (effect.stat === 'hp') {
+          hpBonus += effect.value || 0;
+        }
+      }
+    }
+  });
+  
+  return {
+    attack: (creature.attack || 0) + attackBonus,
+    hp: (creature.hp || 0) + hpBonus,
+  };
+}
 
 interface GameStore extends GameState {
   initializeGame: (playerNames: [string, string]) => void;
@@ -100,6 +127,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         player.mana -= card.cost;
         player.creatureZone[action.position] = card;
+        
+        // Track when creature was summoned (for summoning sickness)
+        card.turnSummoned = state.turn;
         
         set({ players: { ...state.players, [action.playerId]: player } });
         break;
@@ -226,10 +256,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
         
         // Check if already attacked this turn
         if (attacker.hasAttacked) break;
+        
+        // Check summoning sickness (cannot attack on turn it was summoned)
+        // Exception: creatures with "charge" keyword can attack immediately
+        const isSummoningSickness = attacker.turnSummoned === state.turn;
+        const hasCharge = attacker.keywords?.includes('charge');
+        if (isSummoningSickness && !hasCharge) break;
 
+        // Get effective stats including continuous spell buffs
+        const attackerStats = getEffectiveStats(attacker, player);
+        
         if (action.targetId === 'direct') {
           // Direct attack - deal damage to opponent player
-          const damage = attacker.attack || 0;
+          const damage = attackerStats.attack;
           opponent.hp = Math.max(0, opponent.hp - damage);
         } else {
           // Attack a creature - ATK vs HP system
@@ -237,8 +276,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           if (targetIndex === -1) break;
           
           const target = opponent.creatureZone[targetIndex]!;
-          const attackerAtk = attacker.attack || 0;
-          const targetAtk = target.attack || 0;
+          // Get target's effective stats
+          const targetStats = getEffectiveStats(target, opponent);
+          
+          const attackerAtk = attackerStats.attack;
+          const targetAtk = targetStats.attack;
 
           // Both creatures deal damage to each other's HP simultaneously
           // Attacker deals its ATK as damage to target's HP

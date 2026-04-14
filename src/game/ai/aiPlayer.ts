@@ -1,5 +1,6 @@
 import { GameState, GameAction, Player } from '../../types/game';
 import { CardInstance } from '../../types/card';
+import { getEffectiveStats } from '../engine/gameStore';
 
 export class AIPlayer {
   private playerId: string;
@@ -23,7 +24,7 @@ export class AIPlayer {
         return this.decideMainPhase(player, opponent);
 
       case 'battle':
-        return this.decideBattlePhase(player, opponent);
+        return this.decideBattlePhase(player, opponent, state.turn);
 
       case 'end':
         return { type: 'END_TURN' };
@@ -110,11 +111,17 @@ export class AIPlayer {
     return { type: 'NEXT_PHASE' };
   }
 
-  private decideBattlePhase(player: Player, opponent: Player): GameAction | null {
-    // Find creatures that can attack (haven't attacked this turn)
-    const attackingCreatures = player.creatureZone.filter(c =>
-      c !== null && c.attack && c.attack > 0 && !c.hasAttacked
-    ) as CardInstance[];
+  private decideBattlePhase(player: Player, opponent: Player, currentTurn: number): GameAction | null {
+    // Find creatures that can attack (haven't attacked this turn and not summoning sickness)
+    const attackingCreatures = player.creatureZone.filter(c => {
+      if (!c || !c.attack || c.attack <= 0 || c.hasAttacked) return false;
+      
+      // Check summoning sickness (cannot attack on turn it was summoned)
+      // Exception: creatures with "charge" keyword can attack immediately
+      const isSummoningSickness = c.turnSummoned === currentTurn;
+      const hasCharge = c.keywords?.includes('charge');
+      return !isSummoningSickness || hasCharge;
+    }) as CardInstance[];
 
     // No more creatures can attack, end battle phase
     if (attackingCreatures.length === 0) {
@@ -124,13 +131,21 @@ export class AIPlayer {
     // Find opponent creatures
     const opponentCreatures = opponent.creatureZone.filter(c => c !== null) as CardInstance[];
 
-    // Sort attackers by attack power (strongest first)
-    attackingCreatures.sort((a, b) => (b.attack || 0) - (a.attack || 0));
+    // Sort attackers by effective attack power (strongest first)
+    attackingCreatures.sort((a, b) => {
+      const aStats = getEffectiveStats(a, player);
+      const bStats = getEffectiveStats(b, player);
+      return bStats.attack - aStats.attack;
+    });
     const attacker = attackingCreatures[0];
 
-    // If opponent has creatures, attack the one with lowest HP
+    // If opponent has creatures, attack the one with lowest effective HP
     if (opponentCreatures.length > 0) {
-      opponentCreatures.sort((a, b) => ((a.remainingHp ?? a.hp) || 0) - ((b.remainingHp ?? b.hp) || 0));
+      opponentCreatures.sort((a, b) => {
+        const aStats = getEffectiveStats(a, opponent);
+        const bStats = getEffectiveStats(b, opponent);
+        return (a.remainingHp ?? aStats.hp) - (b.remainingHp ?? bStats.hp);
+      });
       const target = opponentCreatures[0];
 
       return {
