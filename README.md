@@ -9,25 +9,33 @@ A strategic card battle game inspired by Yu-Gi-Oh!, built with React + TypeScrip
 ### Game Mechanics
 - **5 Card Types**: Creature, Normal Spell, Continuous Spell, Equip Spell, Trap
 - **Mana System**: Gain 1 mana per turn (max 10) to play cards
-- **Combat System**: Creatures attack with ATK vs DEF calculations
-- **AI Opponent**: Smart AI with strategic decision making
-- **Trap System**: Set traps face-down, activate on trigger conditions
+- **Combat System**: ATK vs HP (simultaneous damage)
+- **AI Opponent**: Strategic AI with effective stat calculation
+- **Trap System**: Manual activation with full effect support
+- **Card Tooltip**: Hover to see full card details
+- **Summoning Sickness**: Creatures can't attack on summon turn
 
 ### Card Types
 
 | Type | Description | Example |
 |------|-------------|---------|
-| **Creature** | Battle units with ATK/DEF | Fire Dragon (1500/1000) |
+| **Creature** | Battle units with ATK/HP | Fire Dragon (7 ATK / 5 HP) |
 | **Normal Spell** | Instant effect, goes to graveyard | Fireball (500 damage) |
-| **Continuous Spell** | Stays on field, ongoing buff | Mystic Plasma Zone (+300 ATK) |
-| **Equip Spell** | Attach to creature for buffs | Sword of Flames (+500 ATK) |
+| **Continuous Spell** | Stays on field, ongoing buff | Mystic Plasma Zone (+2 ATK) |
+| **Equip Spell** | Attach to creature for buffs | Sword of Flames (+2 ATK) |
 | **Trap** | Set face-down, trigger on conditions | Mirror Force (destroy attackers) |
 
 ### Keywords
-- **Charge**: Can attack the turn it's summoned
+- **Charge**: Can attack the turn it's summoned (ignores summoning sickness)
 - **Taunt**: Enemies must attack this creature first
 - **Stealth**: Can't be targeted until it attacks
 - **Deathrattle**: Effect triggers when creature dies
+
+### Game Rules
+- **Summoning Sickness**: Creatures can't attack on the turn they're summoned (unless they have Charge)
+- **Continuous Spells**: Buffs apply immediately and affect all valid creatures
+- **Trap Activation**: Click your face-down trap to activate it during opponent's turn
+- **Combat Damage**: Both creatures deal damage to each other's HP simultaneously
 
 ## Tech Stack
 
@@ -102,6 +110,7 @@ The AI opponent follows this priority:
 3. Cast continuous spells for buffs
 4. Cast damage spells
 5. Attack weakest enemy creature (or direct attack)
+6. Respects summoning sickness rules
 
 ## Future Improvements
 
@@ -112,7 +121,10 @@ The AI opponent follows this priority:
 - [ ] Save/load game state
 - [ ] Multiplayer support
 - [ ] More cards and abilities
-- [ ] Trap trigger system completion
+- [x] Trap card effects (Mirror Force, Magic Cylinder, etc.)
+- [ ] Trap auto-trigger system (currently manual activation)
+- [x] Continuous spell buffs in combat
+- [x] Summoning sickness mechanic
 
 ## License
 
