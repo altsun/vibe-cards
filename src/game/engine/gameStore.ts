@@ -47,7 +47,7 @@ function checkAndActivateTraps(
   // Check all set traps in player's spell/trap zone
   player.spellTrapZone.forEach((slot, slotIndex) => {
     const trap = slot.card;
-    if (!trap || !trap.isSet || !trap.isFaceDown) return;
+    if (!trap || !trap.isFaceDown) return;
     
     const condition = trap.triggerCondition;
     if (!condition || condition.type !== triggerType) return;
@@ -202,7 +202,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     switch (action.type) {
       case 'DRAW_CARD': {
         const player = state.players[action.playerId];
-        if (player.deck.length > 0) {
+        if (player.deck.length === 0) {
+          // Không còn bài để rút -> thua cuộc
+          const opponentId = action.playerId === 'p1' ? 'p2' : 'p1';
+          set({
+            gameOver: true,
+            winner: opponentId,
+          });
+        } else {
           const card = player.deck.shift()!;
           player.hand.push(card);
           set({ players: { ...state.players, [action.playerId]: player } });
