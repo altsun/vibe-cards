@@ -75,7 +75,6 @@ body {
   gap: 6px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 .player-info {

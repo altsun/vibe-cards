@@ -61,6 +61,29 @@ export const Card: React.FC<CardProps> = ({
       <div className={`card card-set ${compact ? 'compact' : ''}`} onClick={onClick}>
         <div className="card-set-indicator">SET</div>
         <div className="card-mini-info">{card.name}</div>
+
+        {/* Tooltip for full card info */}
+        <div className="card-tooltip">
+          <div className="tooltip-header" style={{ backgroundColor: getCardTypeColor(card.type) }}>
+            <div className="tooltip-cost">{card.cost}</div>
+            <div className="tooltip-name">{card.name}</div>
+            <div className="tooltip-type">{getCardTypeLabel(card.type)}</div>
+          </div>
+          <div className="tooltip-body">
+            {card.type === 'creature' && (
+              <div className="tooltip-stats">
+                <span className="tooltip-stat atk">ATK: {effectiveAttack ?? card.attack}</span>
+                <span className="tooltip-stat hp">HP: {card.remainingHp ?? card.hp}/{effectiveHp ?? card.hp}</span>
+              </div>
+            )}
+            {card.keywords && card.keywords.length > 0 && (
+              <div className="tooltip-keywords">
+                {card.keywords.map(k => <span key={k} className="tooltip-keyword">{k}</span>)}
+              </div>
+            )}
+            <div className="tooltip-description">{card.description}</div>
+          </div>
+        </div>
       </div>
     );
   }

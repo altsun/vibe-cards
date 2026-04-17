@@ -44,6 +44,16 @@ export const GameBoard: React.FC = () => {
     }
   }, [currentPlayerId, phase, gameOver, dispatch]);
 
+  // Auto advance from resource phase
+  React.useEffect(() => {
+    if (currentPlayerId && phase === 'resource' && !gameOver) {
+      const delay = setTimeout(() => {
+        dispatch({ type: 'NEXT_PHASE' });
+      }, 500);
+      return () => clearTimeout(delay);
+    }
+  }, [currentPlayerId, phase, gameOver, dispatch]);
+
   // AI Turn - continuously makes decisions until end turn
   React.useEffect(() => {
     if (currentPlayerId === 'p2' && !gameOver) {
