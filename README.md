@@ -96,8 +96,8 @@ src/
 
 ## Game Flow
 
-1. **Draw Phase**: Auto-draw 1 card
-2. **Resource Phase**: Mana +1 (max 10), refill to max
+1. **Draw Phase**: Auto-draw 1 card (auto-advance)
+2. **Resource Phase**: Mana +1 (max 10), refill to max (auto-advance)
 3. **Main Phase**: Summon creatures, cast spells, set traps
 4. **Battle Phase**: Declare attacks
 5. **End Phase**: Turn ends, switch player
